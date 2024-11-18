@@ -7,6 +7,10 @@ app = Flask(__name__)
 # Initialize the zero-shot classifier
 classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
+@app.route('/')
+def home():
+    return "Hello, Flask!"
+
 @app.route('/classify_transactions', methods=['POST'])
 def classify_transactions():
     # Parse JSON data from the request body
