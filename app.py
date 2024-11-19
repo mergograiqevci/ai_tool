@@ -1,12 +1,21 @@
 import threading
+import os
 from flask import Flask, jsonify, request
 from transformers import pipeline
+from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Initialize the zero-shot classifier
 classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["admin"]  # Replace with your database name
+users_collection = db["users"]  # Replace with your collection name
 
 @app.route('/')
 def home():
@@ -18,6 +27,17 @@ def classify_transactions():
     data = request.json
     transactions = data.get("transactions", [])
     refined_categories = data.get("categories", [])
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Authorization token is missing or invalid"}), 401
+
+    token = auth_header.split(" ")[1]
+    user = users_collection.find_one({"tokens.token": token})
+    print(user)
+
+    if not user:
+        return jsonify({"error": "Invalid or unauthorized token"}), 403
 
     # Check if transactions and categories are provided
     if not transactions or not refined_categories:
