@@ -2,9 +2,8 @@ import threading
 import os
 from flask import Flask, jsonify, request
 from transformers import pipeline
-from pymongo import MongoClient
+from pymongo import MongoClient, ObjectId
 from dotenv import load_dotenv
-from bson import ObjectId
 
 load_dotenv()
 

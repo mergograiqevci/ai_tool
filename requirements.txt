@@ -4,4 +4,3 @@ torch
 gunicorn
 pymongo
 python-dotenv
-bson
