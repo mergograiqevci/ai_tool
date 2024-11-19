@@ -35,8 +35,8 @@ def classify_transactions():
         return jsonify({"error": "Authorization token is missing or invalid"}), 401
 
     token = auth_header.split(" ")[1]
-    print(auth_header)
-    user = users_collection.find_one({"tokens.token": token})
+    print(token)
+    user = users_collection.find_one({"jwtTokens.token": token})
     print(user)
 
     if not user:
