@@ -1,3 +1,4 @@
+import threading
 from flask import Flask, jsonify, request
 from transformers import pipeline
 
@@ -22,27 +23,27 @@ def classify_transactions():
     if not transactions or not refined_categories:
         return jsonify({"error": "Transactions and categories are required"}), 400
 
-    # Prepare results list
-    results = []
+    # Offload classification to a background thread
+    def classify_and_store():
+        results = []
+        for transaction in transactions:
+            prediction = classifier(
+                transaction["name"],
+                candidate_labels=refined_categories,
+                hypothesis_template="This transaction should be categorized as {}."
+            )
+            results.append({
+                "Transaction Name": transaction["name"],
+                "Amount": transaction["amount"],
+                "Predicted Category": prediction["labels"][0],
+                "Prediction Score": prediction["scores"][0]
+            })
+        print(results)  # Simulate storing or processing results
 
-    # Loop through transactions and classify each
-    for transaction in transactions:
-        prediction = classifier(
-            transaction["name"],
-            candidate_labels=refined_categories,
-            hypothesis_template="This transaction should be categorized as {}."
-        )
+    thread = threading.Thread(target=classify_and_store)
+    thread.start()
 
-        results.append({
-            "Transaction Name": transaction["name"],
-            "Amount": transaction["amount"],
-            "Predicted Category": prediction["labels"][0],
-            "Prediction Score": prediction["scores"][0]
-        })
-
-    print(results)
-    # Return results as JSON
-    return "", 204
+    return jsonify({"status": "Processing in background"}), 202
 
 if __name__ == '__main__':
     # Use host="0.0.0.0" to make it accessible over the network
