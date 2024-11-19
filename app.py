@@ -35,9 +35,7 @@ def classify_transactions():
         return jsonify({"error": "Authorization token is missing or invalid"}), 401
 
     token = auth_header.split(" ")[1]
-    print(token)
     user = users_collection.find_one({"jwtTokens.token": token})
-    print(user)
 
     if not user:
         return jsonify({"error": "Invalid or unauthorized token"}), 403
@@ -60,8 +58,7 @@ def classify_transactions():
             predicted_score = prediction["scores"][0]
             transactions_collection.update_one(
                 {
-                    "_id": transaction["_id"],  # Match the transaction by its unique ID
-                    "user": user["_id"]  # Ensure the transaction belongs to the authenticated user
+                    "transaction_id": transaction["transaction_id"]
                 },
                 {
                     "$set": {"local_category": predicted_category}
