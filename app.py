@@ -2,7 +2,7 @@ import threading
 import os
 from flask import Flask, jsonify, request
 from transformers import pipeline
-from pymongo import MongoClient, ObjectId
+from pymongo import MongoClient
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -60,7 +60,7 @@ def classify_transactions():
             predicted_score = prediction["scores"][0]
             transactions_collection.update_one(
                 {
-                    "_id": ObjectId(transaction["_id"]),  # Match the transaction by its unique ID
+                    "_id": transaction["_id"],  # Match the transaction by its unique ID
                     "user": user["_id"]  # Ensure the transaction belongs to the authenticated user
                 },
                 {
