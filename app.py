@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request
 from transformers import pipeline
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from bson import ObjectId
 
 load_dotenv()
 
@@ -13,9 +14,11 @@ app = Flask(__name__)
 # Initialize the zero-shot classifier
 classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 MONGO_URI = os.getenv("MONGO_URI")
+print(MONGO_URI)
 client = MongoClient(MONGO_URI)
 db = client["admin"]  # Replace with your database name
 users_collection = db["users"]  # Replace with your collection name
+transactions_collection = db["transactions"]
 
 @app.route('/')
 def home():
@@ -33,6 +36,7 @@ def classify_transactions():
         return jsonify({"error": "Authorization token is missing or invalid"}), 401
 
     token = auth_header.split(" ")[1]
+    print(auth_header)
     user = users_collection.find_one({"tokens.token": token})
     print(user)
 
@@ -52,11 +56,24 @@ def classify_transactions():
                 candidate_labels=refined_categories,
                 hypothesis_template="This transaction should be categorized as {}."
             )
+
+            predicted_category = prediction["labels"][0]
+            predicted_score = prediction["scores"][0]
+            transactions_collection.update_one(
+                {
+                    "_id": ObjectId(transaction["_id"]),  # Match the transaction by its unique ID
+                    "user": user["_id"]  # Ensure the transaction belongs to the authenticated user
+                },
+                {
+                    "$set": {"local_category": predicted_category}
+                }
+            )
+
             results.append({
-                "Transaction Name": transaction["name"],
-                "Amount": transaction["amount"],
-                "Predicted Category": prediction["labels"][0],
-                "Prediction Score": prediction["scores"][0]
+                "transaction_name": transaction["name"],
+                "amount": transaction["amount"],
+                "predicted_category": predicted_category,
+                "prediction_score": predicted_score
             })
         print(results)  # Simulate storing or processing results
 
