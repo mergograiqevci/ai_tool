@@ -80,7 +80,7 @@ def classify_transactions():
             transactions_collection.update_one(
                 {
                     "transaction_id": transaction["transaction_id"],
-                    "user": str(user["_id"])
+                    "userId": str(user["_id"])
                 },
                 {
                     "$set": {
