@@ -28,7 +28,7 @@ def classify_transactions():
     # Parse JSON data from the request body
     data = request.json
     transactions = data.get("transactions", [])
-    refined_categories = data.get("categories", [])
+    refined_categories = data.get("categories", {})
     auth_header = request.headers.get("Authorization")
 
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -47,31 +47,60 @@ def classify_transactions():
     # Offload classification to a background thread
     def classify_and_store():
         results = []
+        category_keys = list(refined_categories.keys())  # Extract category keys
+
         for transaction in transactions:
-            prediction = classifier(
-                transaction["name"],
-                candidate_labels=refined_categories,
+            transaction_name = transaction["name"]
+            transaction_amount = transaction["amount"]
+
+            # Predict the main category using transaction name and amount
+            category_input = f"{transaction_name}. Amount: {transaction_amount}"
+            category_prediction = classifier(
+                category_input,
+                candidate_labels=category_keys,
                 hypothesis_template="This transaction should be categorized as {}."
             )
 
-            predicted_category = prediction["labels"][0]
-            predicted_score = prediction["scores"][0]
+            predicted_category = category_prediction["labels"][0]
+
+            # Get subcategories for the predicted category
+            subcategories = refined_categories.get(predicted_category, [])
+
+            # Predict the subcategory using transaction name, amount, and predicted category
+            subcategory_input = f"{transaction_name}. Amount: {transaction_amount}. Category: {predicted_category}"
+            subcategory_prediction = classifier(
+                subcategory_input,
+                candidate_labels=subcategories,
+                hypothesis_template="This transaction belongs to {}."
+            )
+
+            predicted_subcategory = subcategory_prediction["labels"][0]
+
+            # Update the transaction in the database
             transactions_collection.update_one(
                 {
-                    "transaction_id": transaction["transaction_id"]
+                    "transaction_id": transaction["transaction_id"],
+                    "user": str(user["_id"])
                 },
                 {
-                    "$set": {"local_category": predicted_category}
+                    "$set": {
+                        "local_category": predicted_category,
+                        "local_sub_category": predicted_subcategory
+                    }
                 }
             )
 
+            # Append results for logging/debugging
             results.append({
-                "transaction_name": transaction["name"],
-                "amount": transaction["amount"],
+                "transaction_name": transaction_name,
+                "amount": transaction_amount,
                 "predicted_category": predicted_category,
-                "prediction_score": predicted_score
+                "predicted_subcategory": predicted_subcategory,
+                "category_score": category_prediction["scores"][0],
+                "subcategory_score": subcategory_prediction["scores"][0]
             })
-        print(results)  # Simulate storing or processing results
+
+        print(results)  # Log the results for debugging
 
     thread = threading.Thread(target=classify_and_store)
     thread.start()
